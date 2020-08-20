@@ -1,5 +1,5 @@
 <template>
-    <section v-if="huboerror">
+    <section v-if="isError">
         <div>    
             <p>Sorry, it is not possible to get the information at this time, please try again later.</p>
         </div>        
@@ -10,17 +10,32 @@
         <div class="cardContainer">
             <div class="card">
                 <h1>WEATHER APP 📱</h1>
-                <div class="w-stats">
-                    <div>
-                        <h3>{{city}}, <span class="location">{{country}}</span></h3> 
+
+                <div v-if="errorLocation">
+                    Sorry, but the following error
+                    occurred: {{errorLocation}}
+                </div>                
+                <div v-if="gettingLocation">
+                    <i>Getting your location...</i>
+                </div>
+
+                <div v-if="loading" class="spinner">
+                    Loading...
+                </div>                    
+
+                <template v-if="loading === false">
+                    <div class="w-stats">
+                        <div>
+                            <h3>{{city}}, <span class="location">{{country}}</span></h3> 
+                        </div>
                     </div>
-                </div>
-                <div class="w-icon">
-                    <img class="w-image" :src="`${icon}`">
-                </div>
-                <div class="w-temp">
-                    <h1>{{temp}}°</h1>
-                </div>        
+                    <div class="w-icon">
+                        <img class="w-image" :src="`${icon}`">
+                    </div>
+                    <div class="w-temp">
+                        <h1>{{temp}}°</h1>
+                    </div>
+                </template>
             </div>
         </div>
     </section>
@@ -38,22 +53,26 @@ export default {
             country:null,
             temp:null,
             icon:null,
-            cargando: true,
-            huboerror: false
+            loading: true,
+            isError: false,
+            gettingLocation: false,
+            errorLocation: null
         }
     },
+    created() {
+    },
     mounted(){
-        this.getAll();
     },
     methods: {
-        getAll(){
-            this.cargando = true //the loading begin
+        getApiWeather(latitude, longitude){
+            this.loading = true //the loading begin
+            this.gettingLocation = true;
             const url = "https://fcc-weather-api.glitch.me/api/current";
             axios
                 .get(url, {
                     params: {
-                        lat: -34.74,
-                        lon: -58.39
+                        lat: latitude,
+                        lon: longitude
                     }
                 }
                 )
@@ -66,13 +85,38 @@ export default {
                 })
                 .catch(error => {
                     console.log(error)
-                    this.huboerror = true
+                    this.isError = true
                 })
-                .finally(() => this.cargando = false)
-                }
-    }    
-}
+                .finally(() => 
+                    this.loading = false,
+                    this.gettingLocation = false
+                )
+        },
+        initGeolocation(){
+            // we determine if it supports geolocation
+            if(!navigator.geolocation){
+                this.errorLocation = "<strong>Geolocation is not supported by your browser</strong>";
+                return;
+            }
 
+            navigator.geolocation.getCurrentPosition(this.createUrl, this.errorGeoLocation);
+            this.gettingLocation = false;
+        },
+        createUrl(position){
+            const lat = position.coords.latitude;
+            const lon = position.coords.longitude;
+            this.gettingLocation = true;
+
+            this.getApiWeather(lat, lon);
+        },
+        errorGeoLocation(){
+            this.errorLocation = "Unable to retrieve your location";
+        }
+    },
+    beforeMount(){
+        this.initGeolocation();
+    },
+}
 </script>
 
 <style>
@@ -82,11 +126,8 @@ export default {
 body{
     margin: 0;
     padding: 0;
-    background: -webkit-linear-gradient(to bottom, #36d1dc , #5b86e5); 
-    background: linear-gradient(to bottom, #36d1dc , #5b86e5, #5b86e5); 
-    background-repeat: no-repeat;
-    height: 100vh;
-    width: 100vw;
+    background: rgb(49,95,198);
+    background: radial-gradient(circle, rgba(49,95,198,1) 0%, rgba(81,226,236,1) 63%);
 }
 .card {
     position: absolute;    
@@ -121,7 +162,7 @@ body{
     display: table;
     clear: both;
 }
-.w-img{
+.w-image{
     width:120px;
     max-width:120px;
     height: 120px;
@@ -131,5 +172,34 @@ body{
     .card {
         width: 100%;
     }
+}
+.spinner {
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    height:100px;
+    width:100px;
+    margin:0px auto;
+    -webkit-animation: rotation .6s infinite linear;
+    -moz-animation: rotation .6s infinite linear;
+    -o-animation: rotation .6s infinite linear;
+    animation: rotation .6s infinite linear;
+    border-left:6px solid rgba(0,174,239,.15);
+    border-right:6px solid rgba(0,174,239,.15);
+    border-bottom:6px solid rgba(0,174,239,.15);
+    border-top:6px solid rgba(0,174,239,.8);
+    border-radius:100%;
+}
+@-webkit-keyframes rotation {
+    from {-webkit-transform: rotate(0deg);}
+    to {-webkit-transform: rotate(359deg);}
+}
+@keyframes rotation {
+    from {-moz-transform: rotate(0deg);}
+    to {-moz-transform: rotate(359deg);}
+}
+@-o-keyframes rotation {
+    from {-o-transform: rotate(0deg);}
+    to {-o-transform: rotate(359deg);}
 }
 </style>
